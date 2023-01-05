@@ -1,15 +1,12 @@
 package org.firstinspires.ftc.teamcode;
 
-import com.qualcomm.hardware.rev.RevColorSensorV3;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
-import com.qualcomm.robotcore.hardware.ColorSensor;
 import com.qualcomm.robotcore.hardware.DcMotor;
-import com.qualcomm.robotcore.hardware.DigitalChannel;
 import com.qualcomm.robotcore.hardware.DistanceSensor;
-import com.qualcomm.robotcore.hardware.NormalizedColorSensor;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
+import com.qualcomm.robotcore.util.Range;
 
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 
@@ -45,12 +42,10 @@ public class HumanMode extends LinearOpMode
     static final double     TIMEOUT                 = 2.0;
 
     ElapsedTime runTimer = new ElapsedTime();
-    ElapsedTime deltaTimer = new ElapsedTime();
-    double deltatime = 0.0;
 
     // called when init button is  pressed.
     @Override
-    public void runOpMode() throws InterruptedException
+    public void runOpMode()
     {
         // Get hardware from config
         LiftStopper     = hardwareMap.get(DistanceSensor.class, "lift_stopper");
@@ -82,9 +77,6 @@ public class HumanMode extends LinearOpMode
 
         while (opModeIsActive())
         {
-            deltaTimer.reset();
-            deltatime = deltaTimer.milliseconds() / 1000.0;
-
             // Getting sticks values
             leftStickX  = gamepad1.left_stick_x;
             leftStickY  = -gamepad1.left_stick_y;
@@ -94,7 +86,7 @@ public class HumanMode extends LinearOpMode
             telemetry.addData("Left Stick at",  leftStickX + ":" + leftStickY);
             telemetry.addData("Right Stick at", rightStickX + ":" + rightStickY);
 
-            GrabberServo.setPosition(GrabberServo.getPosition() + (gamepad1.left_trigger - gamepad1.right_trigger) * GRABBER_SPEED);
+            GrabberServo.setPosition(Range.clip(GrabberServo.getPosition() + (gamepad1.left_trigger - gamepad1.right_trigger) * GRABBER_SPEED, 0.0, 1.0));
 
             flPower = frPower = blPower = brPower = 0f;
             if (gamepad1.dpad_up) {
@@ -105,21 +97,21 @@ public class HumanMode extends LinearOpMode
             }
             if (gamepad1.dpad_right) {
                 flPower += 1f;
-                frPower += -1f;
-                blPower += -1f;
+                frPower -= 1f;
+                blPower -= 1f;
                 brPower += 1f;
             }
             if (gamepad1.dpad_down) {
-                flPower += -1f;
-                frPower += -1f;
-                blPower += -1f;
-                brPower += -1f;
+                flPower -= 1f;
+                frPower -= 1f;
+                blPower -= 1f;
+                brPower -= 1f;
             }
             if (gamepad1.dpad_left) {
-                flPower += -1f;
+                flPower -= 1f;
                 frPower += 1f;
                 blPower += 1f;
-                brPower += -1f;
+                brPower -= 1f;
             }
             flPower += leftStickY + leftStickX;
             frPower += leftStickY - leftStickX;
@@ -163,10 +155,25 @@ public class HumanMode extends LinearOpMode
             runTimer.reset();
             while (opModeIsActive() &&
                     (runTimer.seconds() <= TIMEOUT) &&
-                    (FLMotor.isBusy() || FRMotor.isBusy() || BLMotor.isBusy() || BLMotor.isBusy()) || LiftMotor.isBusy()) { }
+                    (FLMotor.isBusy() || FRMotor.isBusy() || BLMotor.isBusy() || BLMotor.isBusy()) || LiftMotor.isBusy()) {
+                telemetry.addData("Current position",
+                        "FL: " + FLMotor.getCurrentPosition() +
+                                " FR: " + FRMotor.getCurrentPosition() +
+                                " BL: " + BLMotor.getCurrentPosition() +
+                                " BR: " + FRMotor.getCurrentPosition() +
+                                " Lift: " + FRMotor.getCurrentPosition()
+                );
+                telemetry.addData("New position",
+                        "FL: " + newFLPosition +
+                                " FR: " + newFRPosition +
+                                " BL: " + newBLPosition +
+                                " BR: " + newBRPosition +
+                                " Lift: " + newLiftPosition
+                );
+                telemetry.update();
+            }
 
             telemetry.addData("Lift Position", "" + LiftMotor.getCurrentPosition());
-            telemetry.addData("Lift Stopper", "" + LiftStopper.getDistance(DistanceUnit.INCH) + " ( " + (LiftStopper.getDistance(DistanceUnit.INCH) < 1 ? "true" : "false") + " ) ");
             telemetry.update();
 
             idle();
