@@ -1,11 +1,17 @@
 package org.firstinspires.ftc.teamcode;
 
+import com.qualcomm.hardware.rev.RevColorSensorV3;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
+import com.qualcomm.robotcore.hardware.ColorSensor;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DigitalChannel;
+import com.qualcomm.robotcore.hardware.DistanceSensor;
+import com.qualcomm.robotcore.hardware.NormalizedColorSensor;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
+
+import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 
 // Left Stick - Normal tank scheme
 // DPad - Going from side to side (and front too)
@@ -16,7 +22,7 @@ import com.qualcomm.robotcore.util.ElapsedTime;
 //@Disabled
 public class HumanMode extends LinearOpMode
 {
-    DigitalChannel LiftButton;
+    DistanceSensor LiftStopper;
     Servo GrabberServo;
     DcMotor FLMotor, FRMotor, BLMotor, BRMotor, LiftMotor;
     float leftStickX, leftStickY, rightStickX, rightStickY, flPower, frPower, blPower, brPower, liftPower;
@@ -32,19 +38,22 @@ public class HumanMode extends LinearOpMode
     static final double     WHEEL_DIAMETER_INCHES   = 98/25.4;
     static final double     COUNTS_PER_INCH         = (COUNTS_PER_MOTOR_REV * DRIVE_GEAR_REDUCTION) /
                                                                     (WHEEL_DIAMETER_INCHES * Math.PI);
-    static final double     SPEED                   = 1.2;
-    static final double     LIFT_SPEED              = 0.6;
+    static final double     SPEED                   = 1.5;
+    static final double     SPRINT_SPEED            = 3.0;
+    static final double     LIFT_SPEED              = 1.5;
     static final double     GRABBER_SPEED           = 10.0;
     static final double     TIMEOUT                 = 2.0;
 
-    ElapsedTime runtime = new ElapsedTime();
+    ElapsedTime runTimer = new ElapsedTime();
+    ElapsedTime deltaTimer = new ElapsedTime();
+    double deltatime = 0.0;
 
     // called when init button is  pressed.
     @Override
     public void runOpMode() throws InterruptedException
     {
         // Get hardware from config
-        LiftButton      = hardwareMap.digitalChannel.get("lift_button");
+        LiftStopper     = hardwareMap.get(DistanceSensor.class, "lift_stopper");
         FLMotor         = hardwareMap.dcMotor.get("front_left_motor");
         FRMotor         = hardwareMap.dcMotor.get("front_right_motor");
         BLMotor         = hardwareMap.dcMotor.get("back_left_motor");
@@ -67,12 +76,17 @@ public class HumanMode extends LinearOpMode
         telemetry.update();
         waitForStart();
 
-        int newFLPosition, newFRPosition, newBLPosition, newBRPosition;
+        setup_arm();
+
+        int newFLPosition, newFRPosition, newBLPosition, newBRPosition, newLiftPosition;
 
         while (opModeIsActive())
         {
+            deltaTimer.reset();
+            deltatime = deltaTimer.milliseconds() / 1000.0;
+
             // Getting sticks values
-            leftStickX  = -gamepad1.left_stick_x;
+            leftStickX  = gamepad1.left_stick_x;
             leftStickY  = -gamepad1.left_stick_y;
             rightStickX = -gamepad1.right_stick_x;
             rightStickY = -gamepad1.right_stick_y;
@@ -91,8 +105,8 @@ public class HumanMode extends LinearOpMode
             }
             if (gamepad1.dpad_right) {
                 flPower += 1f;
-                frPower += 1f;
-                blPower += 1f;
+                frPower += -1f;
+                blPower += -1f;
                 brPower += 1f;
             }
             if (gamepad1.dpad_down) {
@@ -104,55 +118,55 @@ public class HumanMode extends LinearOpMode
             if (gamepad1.dpad_left) {
                 flPower += -1f;
                 frPower += 1f;
-                blPower += -1f;
-                brPower += 1f;
+                blPower += 1f;
+                brPower += -1f;
             }
-            flPower += leftStickX + leftStickY;
-            frPower += leftStickX - leftStickY;
-            blPower += leftStickX + leftStickY;
-            brPower += leftStickX - leftStickY;
+            flPower += leftStickY + leftStickX;
+            frPower += leftStickY - leftStickX;
+            blPower += leftStickY + leftStickX;
+            brPower += leftStickY - leftStickX;
 
-            // liftPower = Range.clip(rightStickX, -1f, 1f);
+            liftPower = -rightStickY;
 
             newFLPosition = FLMotor.getCurrentPosition() + inchesToEncoderRots(-flPower);
             newFRPosition = FRMotor.getCurrentPosition() + inchesToEncoderRots(frPower);
             newBLPosition = BLMotor.getCurrentPosition() + inchesToEncoderRots(-blPower);
             newBRPosition = BRMotor.getCurrentPosition() + inchesToEncoderRots(brPower);
+            newLiftPosition = LiftMotor.getCurrentPosition() + inchesToEncoderRots(liftPower);
+            if (newLiftPosition > 0) newLiftPosition = 0;
+
             FLMotor.setTargetPosition(newFLPosition);
             FRMotor.setTargetPosition(newFRPosition);
             BLMotor.setTargetPosition(newBLPosition);
             BRMotor.setTargetPosition(newBRPosition);
+            LiftMotor.setTargetPosition(newLiftPosition);
 
-            FLMotor.setPower(SPEED);
-            FRMotor.setPower(SPEED);
-            BLMotor.setPower(SPEED);
-            BRMotor.setPower(SPEED);
-            // LiftMotor.setPower(LIFT_SPEED);
+            if (gamepad1.right_bumper) {
+                FLMotor.setPower(SPRINT_SPEED);
+                FRMotor.setPower(SPRINT_SPEED);
+                BLMotor.setPower(SPRINT_SPEED);
+                BRMotor.setPower(SPRINT_SPEED);
+            } else {
+                FLMotor.setPower(SPEED);
+                FRMotor.setPower(SPEED);
+                BLMotor.setPower(SPEED);
+                BRMotor.setPower(SPEED);
+            }
+            LiftMotor.setPower(LIFT_SPEED);
 
             FLMotor.setMode(DcMotor.RunMode.RUN_TO_POSITION);
             FRMotor.setMode(DcMotor.RunMode.RUN_TO_POSITION);
             BLMotor.setMode(DcMotor.RunMode.RUN_TO_POSITION);
             BRMotor.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+            LiftMotor.setMode(DcMotor.RunMode.RUN_TO_POSITION);
 
-            runtime.reset();
+            runTimer.reset();
             while (opModeIsActive() &&
-                    (runtime.seconds() <= TIMEOUT) &&
-                    (FLMotor.isBusy() && FRMotor.isBusy() && BLMotor.isBusy() && BLMotor.isBusy())) {
-                telemetry.addData("Currently at",
-                        "FL: " + FLMotor.getCurrentPosition() +
-                                "FR: " + FRMotor.getCurrentPosition() +
-                                "BL: " + BLMotor.getCurrentPosition() +
-                                "BR: " + BRMotor.getCurrentPosition()
-                );
-                telemetry.addData("Going to",
-                        "FL: " + newFLPosition +
-                                "FR: " + newFRPosition +
-                                "BL: " + newBLPosition +
-                                "BR: " + newBRPosition);
-                telemetry.update();
-            }
+                    (runTimer.seconds() <= TIMEOUT) &&
+                    (FLMotor.isBusy() || FRMotor.isBusy() || BLMotor.isBusy() || BLMotor.isBusy()) || LiftMotor.isBusy()) { }
 
-            telemetry.addData("Lift Button State: ", (LiftButton.getState() ? "on" : "off"));
+            telemetry.addData("Lift Position", "" + LiftMotor.getCurrentPosition());
+            telemetry.addData("Lift Stopper", "" + LiftStopper.getDistance(DistanceUnit.INCH) + " ( " + (LiftStopper.getDistance(DistanceUnit.INCH) < 1 ? "true" : "false") + " ) ");
             telemetry.update();
 
             idle();
@@ -161,4 +175,22 @@ public class HumanMode extends LinearOpMode
 
     int inchesToEncoderRots(float inches) { return (int)(inches * COUNTS_PER_INCH); }
     float encoderRotsToInches(int rots) { return (float)(rots / COUNTS_PER_INCH); }
+
+    void setup_arm() {
+        telemetry.addData("Mode", "Setting up the arm...");
+        telemetry.update();
+
+        boolean setting_up = true;
+        LiftMotor.setPower(LIFT_SPEED);
+
+        if (LiftStopper.getDistance(DistanceUnit.INCH) < 1) setting_up = false;
+
+        while (setting_up) {
+            if (LiftStopper.getDistance(DistanceUnit.INCH) < 1) setting_up = false;
+            LiftMotor.setTargetPosition(LiftMotor.getTargetPosition() - 1);
+        }
+
+        LiftMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        LiftMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+    }
 }
