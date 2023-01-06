@@ -7,7 +7,7 @@ import com.qualcomm.robotcore.hardware.DigitalChannel;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
-@TeleOp(name="2022-2023 AutoMode", group="Exercises")
+@TeleOp(name="2022-2023 Automated", group="Exercises")
 //@Disabled
 public class AutomatedMode extends LinearOpMode
 {
