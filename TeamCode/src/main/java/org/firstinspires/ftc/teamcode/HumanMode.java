@@ -21,7 +21,7 @@ public class HumanMode extends LinearOpMode
 {
     double leftStickX, leftStickY, rightStickX, rightStickY, flPower, frPower, blPower, brPower, liftPower;
 
-    // Calculate the COUNTS_PER_INCH for your specific drive train.
+    // Calculate the COUNTS_PER_INCH for your specific drive train
     // Go to your motor vendor website to determine your motor's COUNTS_PER_MOTOR_REV
     // For external drive gearing, set DRIVE_GEAR_REDUCTION as needed.
     // For example, use a value of 2.0 for a 12-tooth spur gear driving a 24-tooth spur gear.
