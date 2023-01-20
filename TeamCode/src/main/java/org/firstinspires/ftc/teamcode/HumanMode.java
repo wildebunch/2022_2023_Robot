@@ -4,6 +4,7 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DistanceSensor;
+import com.qualcomm.robotcore.hardware.Gamepad;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
 import com.qualcomm.robotcore.util.Range;
@@ -16,27 +17,14 @@ import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 // Left Trigger - Grabber close
 // Right Trigger - Grabber open
 
-@TeleOp(name="2022-23 Manual", group="Exercises")
-public class HumanMode extends LinearOpMode
+@TeleOp(name="2022-23 Manual", group="")
+public class HumanMode extends RobotOpMode
 {
     double leftStickX, leftStickY, rightStickX, rightStickY, flPower, frPower, blPower, brPower, liftPower;
-
-    // Calculate the COUNTS_PER_INCH for your specific drive train.
-    // Go to your motor vendor website to determine your motor's COUNTS_PER_MOTOR_REV
-    // For external drive gearing, set DRIVE_GEAR_REDUCTION as needed.
-    // For example, use a value of 2.0 for a 12-tooth spur gear driving a 24-tooth spur gear.
-    // This is gearing DOWN for less speed and more torque.
-    // For gearing UP, use a gear ratio less than 1.0. Note this will affect the direction of wheel rotation.
-    static final double     COUNTS_PER_MOTOR_REV    = 288;
-    static final double     DRIVE_GEAR_REDUCTION    = 1.0;
-    static final double     WHEEL_DIAMETER_INCHES   = 98/25.4;
-    static final double     COUNTS_PER_INCH         = (COUNTS_PER_MOTOR_REV * DRIVE_GEAR_REDUCTION) /
-                                                                    (WHEEL_DIAMETER_INCHES * Math.PI);
     static final double     SPEED                   = 1.5;
-    // static final double     SPRINT_SPEED            = 3.0;
+    static final double     DPAD_SPEED              = 3.0;
     static final double     LIFT_SPEED              = 1.5;
     static final double     GRABBER_SPEED           = 10.0;
-    static final double     TIMEOUT                 = 2.0;
 
     ElapsedTime runTimer = new ElapsedTime();
     ElapsedTime deltaTimer = new ElapsedTime();
@@ -54,16 +42,14 @@ public class HumanMode extends LinearOpMode
 
         controller.init();
 
-        double newFLPosition, newFRPosition, newBLPosition, newBRPosition, newLiftPosition;
-
         deltaTimer.reset();
-        while (opModeIsActive())
+        while (isActive())
         {
             deltaTime = deltaTimer.seconds();
             deltaTimer.reset();
 
             // Getting sticks values
-            leftStickX  = gamepad1.left_stick_x;
+            leftStickX  = -gamepad1.left_stick_x;
             leftStickY  = -gamepad1.left_stick_y;
             rightStickX = -gamepad1.right_stick_x;
             rightStickY = -gamepad1.right_stick_y;
@@ -72,47 +58,64 @@ public class HumanMode extends LinearOpMode
             telemetry.addData("Right Stick at", rightStickX + ":" + rightStickY);
 
             flPower = frPower = blPower = brPower = 0f;
+            controller.setSpeed(1);
             if (gamepad1.dpad_up) {
-                flPower += 1f;
+                flPower -= 1f;
                 frPower += 1f;
-                blPower += 1f;
+                blPower -= 1f;
                 brPower += 1f;
+                controller.setSpeed(0.5);
             }
             if (gamepad1.dpad_right) {
-                flPower += 1f;
+                flPower -= 1f;
                 frPower -= 1f;
-                blPower -= 1f;
+                blPower += 1f;
                 brPower += 1f;
+                controller.setSpeed(0.5);
             }
             if (gamepad1.dpad_down) {
-                flPower -= 1f;
+                flPower += 1f;
                 frPower -= 1f;
-                blPower -= 1f;
-                brPower -= 1f;
-            }
-            if (gamepad1.dpad_left) {
-                flPower -= 1f;
-                frPower += 1f;
                 blPower += 1f;
                 brPower -= 1f;
+                controller.setSpeed(0.5);
             }
-            flPower += leftStickY + leftStickX;
-            frPower += leftStickY - leftStickX;
-            blPower += leftStickY + leftStickX;
-            brPower += leftStickY - leftStickX;
+            if (gamepad1.dpad_left) {
+                flPower += 1f;
+                frPower += 1f;
+                blPower -= 1f;
+                brPower -= 1f;
+                controller.setSpeed(0.5);
+            }
+            flPower += leftStickX - leftStickY;
+            frPower += leftStickX + leftStickY;
+            blPower += leftStickX - leftStickY;
+            brPower += leftStickX + leftStickY;
 
-            liftPower = -rightStickY;
+            liftPower = rightStickY;
+            controller.setLiftSpeed(1);
+            if (liftPower < 0) {
+                controller.setLiftSpeed(0.75);
+            }
 
-            controller.addMove(new RobotController.Move(flPower, frPower, blPower, brPower, liftPower, gamepad1.left_trigger, 0));
-            controller.flush();
+            if (gamepad1.a) {
+                controller.setLiftPosition(2.78);
+            }
+            else if (gamepad1.b) {
+                controller.setLiftPosition(31.55);
+            }
+            else if (gamepad1.x) {
+                controller.setLiftPosition(54.24);
+            }
+            else if (gamepad1.y) {
+                controller.setLiftPosition(69.77);
+            }
+
+            controller.moveFor(flPower, frPower, blPower, brPower, liftPower, gamepad1.right_bumper, 0);
 
             telemetry.update();
 
             idle();
         }
-    }
-
-    public boolean isActive() {
-        return opModeIsActive();
     }
 }
